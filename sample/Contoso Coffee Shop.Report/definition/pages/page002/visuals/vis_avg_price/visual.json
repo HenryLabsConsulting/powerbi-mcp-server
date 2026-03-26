@@ -1,0 +1,52 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.7.0/schema.json",
+  "name": "vis_avg_price",
+  "position": {
+    "x": 640,
+    "y": 20,
+    "z": 2001,
+    "height": 100,
+    "width": 200,
+    "tabOrder": 2001
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": { "SourceRef": { "Entity": "Contoso Measures" } },
+                  "Property": "Avg Order Value"
+                }
+              },
+              "queryRef": "Contoso Measures.Avg Order Value",
+              "nativeQueryRef": "Avg Order Value"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": {
+              "expr": {
+                "Literal": { "Value": "'Avg Order Value'" }
+              }
+            },
+            "show": {
+              "expr": {
+                "Literal": { "Value": "true" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

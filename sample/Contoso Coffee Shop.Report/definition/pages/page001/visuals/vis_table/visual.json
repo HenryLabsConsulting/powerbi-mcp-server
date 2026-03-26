@@ -1,0 +1,72 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.7.0/schema.json",
+  "name": "vis_table",
+  "position": {
+    "x": 20,
+    "y": 510,
+    "z": 1003,
+    "height": 180,
+    "width": 700,
+    "tabOrder": 1003
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": { "SourceRef": { "Entity": "DimStore" } },
+                  "Property": "store_name"
+                }
+              },
+              "queryRef": "DimStore.store_name",
+              "nativeQueryRef": "store_name"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": { "SourceRef": { "Entity": "Contoso Measures" } },
+                  "Property": "Total Revenue"
+                }
+              },
+              "queryRef": "Contoso Measures.Total Revenue",
+              "nativeQueryRef": "Total Revenue"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": { "SourceRef": { "Entity": "Contoso Measures" } },
+                  "Property": "Total Orders"
+                }
+              },
+              "queryRef": "Contoso Measures.Total Orders",
+              "nativeQueryRef": "Total Orders"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": {
+              "expr": {
+                "Literal": { "Value": "'Sales by Store'" }
+              }
+            },
+            "show": {
+              "expr": {
+                "Literal": { "Value": "true" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

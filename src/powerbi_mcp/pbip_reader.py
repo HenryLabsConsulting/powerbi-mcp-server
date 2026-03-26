@@ -1,0 +1,252 @@
+"""Filesystem operations for the .Report tree.
+
+Discovers pages, reads page.json metadata, discovers visuals,
+reads/writes visual.json files with backup support.
+"""
+
+import json
+import shutil
+from pathlib import Path
+
+from .config import Config
+
+
+def get_pages_metadata(config: Config) -> dict:
+    """Read pages.json for page order and active page."""
+    pages_json_path = config.pages_dir / "pages.json"
+    if not pages_json_path.exists():
+        return {"pageOrder": [], "activePageName": None}
+    return json.loads(pages_json_path.read_text(encoding="utf-8"))
+
+
+def list_page_folders(config: Config) -> list[Path]:
+    """Return all page hash directories under pages/."""
+    if not config.pages_dir.exists():
+        return []
+    return sorted(
+        [p for p in config.pages_dir.iterdir() if p.is_dir()],
+        key=lambda p: p.name,
+    )
+
+
+def read_page_json(page_dir: Path) -> dict | None:
+    """Read page.json from a page hash directory."""
+    page_json = page_dir / "page.json"
+    if not page_json.exists():
+        return None
+    try:
+        return json.loads(page_json.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def find_page_by_name(config: Config, page_name: str) -> tuple[str, Path] | None:
+    """Resolve a displayName (case-insensitive) or hash to (hash, page_dir).
+
+    Returns None if no match found.
+    """
+    page_name_lower = page_name.lower().strip()
+
+    for page_dir in list_page_folders(config):
+        # Direct hash match
+        if page_dir.name.lower() == page_name_lower:
+            return (page_dir.name, page_dir)
+
+    # Name-based lookup
+    for page_dir in list_page_folders(config):
+        page_data = read_page_json(page_dir)
+        if page_data and page_data.get("displayName", "").lower().strip() == page_name_lower:
+            return (page_dir.name, page_dir)
+
+    return None
+
+
+def get_all_pages(config: Config) -> list[dict]:
+    """Return all pages with metadata, ordered by pages.json pageOrder."""
+    pages_meta = get_pages_metadata(config)
+    page_order = pages_meta.get("pageOrder", [])
+
+    # Build lookup: hash -> page_dir
+    page_dirs = {p.name: p for p in list_page_folders(config)}
+
+    results = []
+    seen = set()
+
+    # Ordered pages first
+    for idx, page_hash in enumerate(page_order):
+        if page_hash in page_dirs:
+            page_data = read_page_json(page_dirs[page_hash])
+            if page_data:
+                visuals_dir = page_dirs[page_hash] / "visuals"
+                visual_count = len(list(visuals_dir.iterdir())) if visuals_dir.exists() else 0
+                results.append({
+                    "id": page_hash,
+                    "displayName": page_data.get("displayName", ""),
+                    "displayOption": page_data.get("displayOption", ""),
+                    "width": page_data.get("width"),
+                    "height": page_data.get("height"),
+                    "visibility": page_data.get("visibility", "Visible"),
+                    "order": idx,
+                    "visual_count": visual_count,
+                })
+                seen.add(page_hash)
+
+    # Any folders not in pageOrder (shouldn't happen but defensive)
+    for page_hash, page_dir in page_dirs.items():
+        if page_hash not in seen:
+            page_data = read_page_json(page_dir)
+            if page_data:
+                visuals_dir = page_dir / "visuals"
+                visual_count = len(list(visuals_dir.iterdir())) if visuals_dir.exists() else 0
+                results.append({
+                    "id": page_hash,
+                    "displayName": page_data.get("displayName", ""),
+                    "displayOption": page_data.get("displayOption", ""),
+                    "width": page_data.get("width"),
+                    "height": page_data.get("height"),
+                    "visibility": page_data.get("visibility", "Visible"),
+                    "order": len(results),
+                    "visual_count": visual_count,
+                })
+
+    return results
+
+
+def list_visual_folders(page_dir: Path) -> list[Path]:
+    """Return all visual hash directories under a page's visuals/ folder."""
+    visuals_dir = page_dir / "visuals"
+    if not visuals_dir.exists():
+        return []
+    return sorted(
+        [v for v in visuals_dir.iterdir() if v.is_dir()],
+        key=lambda v: v.name,
+    )
+
+
+def read_visual_json(visual_dir: Path) -> dict | None:
+    """Read visual.json from a visual hash directory."""
+    visual_json = visual_dir / "visual.json"
+    if not visual_json.exists():
+        return None
+    try:
+        return json.loads(visual_json.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def extract_visual_summary(visual_data: dict) -> dict:
+    """Extract a human-readable summary from a visual.json dict."""
+    position = visual_data.get("position", {})
+    visual_inner = visual_data.get("visual", {})
+    visual_type = visual_inner.get("visualType", "unknown")
+
+    # Extract bound fields (measures and columns) from query state
+    bound_fields = []
+    query = visual_inner.get("query", {})
+    query_state = query.get("queryState", {})
+    for _role, role_data in query_state.items():
+        projections = role_data.get("projections", [])
+        for proj in projections:
+            field = proj.get("field", {})
+            ref = proj.get("queryRef", "")
+            if "Measure" in field:
+                measure_info = field["Measure"]
+                entity = measure_info.get("Expression", {}).get("SourceRef", {}).get("Entity", "")
+                prop = measure_info.get("Property", "")
+                bound_fields.append({"type": "measure", "entity": entity, "property": prop, "queryRef": ref})
+            elif "Column" in field:
+                col_info = field["Column"]
+                entity = col_info.get("Expression", {}).get("SourceRef", {}).get("Entity", "")
+                prop = col_info.get("Property", "")
+                bound_fields.append({"type": "column", "entity": entity, "property": prop, "queryRef": ref})
+
+    # Build human-readable label: "type:primary_field"
+    label = visual_type
+    if bound_fields:
+        primary = bound_fields[0].get("property", "")
+        if primary:
+            label = f"{visual_type}:{primary}"
+
+    return {
+        "id": visual_data.get("name", ""),
+        "label": label,
+        "visualType": visual_type,
+        "x": position.get("x"),
+        "y": position.get("y"),
+        "z": position.get("z"),
+        "width": position.get("width"),
+        "height": position.get("height"),
+        "tabOrder": position.get("tabOrder"),
+        "bound_fields": bound_fields,
+    }
+
+
+def find_visual(page_dir: Path, visual_id: str) -> Path | None:
+    """Find a visual directory by hash ID or label match.
+
+    visual_id can be:
+    - A hash (direct folder name match)
+    - A label like "card:Estimate Win Rate" (type:field match)
+    """
+    visuals_dir = page_dir / "visuals"
+    if not visuals_dir.exists():
+        return None
+
+    # Direct hash match
+    direct = visuals_dir / visual_id
+    if direct.exists() and direct.is_dir():
+        return direct
+
+    # Label-based lookup: scan all visuals and match label
+    visual_id_lower = visual_id.lower().strip()
+    for vdir in list_visual_folders(page_dir):
+        vdata = read_visual_json(vdir)
+        if vdata:
+            summary = extract_visual_summary(vdata)
+            if summary["label"].lower() == visual_id_lower:
+                return vdir
+
+    return None
+
+
+def deep_merge(base: dict, override: dict) -> dict:
+    """Recursively merge override into base. override values win for non-dict types."""
+    result = base.copy()
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def write_visual_json(visual_dir: Path, merged_data: dict) -> dict:
+    """Write merged visual data to visual.json with backup.
+
+    Returns dict with 'path' and 'backup' keys on success.
+    Raises on failure.
+    """
+    visual_json = visual_dir / "visual.json"
+    backup_path = visual_dir / "visual.json.bak"
+
+    # Validate the merged data is serializable and round-trips clean
+    try:
+        json_str = json.dumps(merged_data, indent=2, ensure_ascii=False)
+        json.loads(json_str)  # round-trip validation
+    except (TypeError, ValueError, json.JSONDecodeError) as e:
+        raise ValueError(f"Merged JSON is invalid: {e}") from e
+
+    # Create backup
+    if visual_json.exists():
+        shutil.copy2(visual_json, backup_path)
+
+    # Write
+    try:
+        visual_json.write_text(json_str, encoding="utf-8")
+    except OSError as e:
+        raise OSError(f"Failed to write visual.json: {e}") from e
+
+    return {
+        "path": str(visual_json),
+        "backup": str(backup_path),
+    }

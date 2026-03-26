@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "powerbi-mcp-server"
+version = "1.0.0"
+description = "MCP server for reading and writing Power BI .pbip project files"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.12"
+authors = [
+    {name = "HenryLabs Consulting"},
+]
+keywords = ["power-bi", "mcp", "pbip", "claude", "ai"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "mcp>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/HenryLabsConsulting/powerbi-mcp-server"
+Repository = "https://github.com/HenryLabsConsulting/powerbi-mcp-server"
+Issues = "https://github.com/HenryLabsConsulting/powerbi-mcp-server/issues"
+
+[project.scripts]
+powerbi-mcp-server = "powerbi_mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

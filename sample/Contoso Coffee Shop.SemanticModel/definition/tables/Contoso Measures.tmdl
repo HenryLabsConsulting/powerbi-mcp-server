@@ -1,0 +1,29 @@
+table 'Contoso Measures'
+	lineageTag: cccccccc-0000-0000-0000-000000000005
+
+	measure 'Total Revenue' = ```
+		SUM(FactSales[revenue])
+		```
+		lineageTag: bbbbbbbb-0000-0000-0000-000000000001
+		formatString: $#,##0
+
+	measure 'Total Orders' = ```
+		COUNTROWS(FactSales)
+		```
+		lineageTag: bbbbbbbb-0000-0000-0000-000000000002
+		formatString: #,##0
+
+	measure 'Avg Order Value' = ```
+		DIVIDE([Total Revenue], [Total Orders], 0)
+		```
+		lineageTag: bbbbbbbb-0000-0000-0000-000000000003
+		formatString: $#,##0.00
+
+	partition 'Contoso Measures' = m
+		mode: import
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i45WAgAA", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [Column1 = _t]),
+				    #"Removed Columns" = Table.RemoveColumns(Source,{"Column1"})
+				in
+				    #"Removed Columns"

@@ -1,0 +1,35 @@
+table DimStore
+	lineageTag: cccccccc-0000-0000-0000-000000000002
+
+	column store_id
+		lineageTag: aaaaaaaa-0000-0000-0000-000000000010
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: store_id
+
+	column store_name
+		lineageTag: aaaaaaaa-0000-0000-0000-000000000011
+		dataType: string
+		summarizeBy: none
+		sourceColumn: store_name
+
+	column city
+		lineageTag: aaaaaaaa-0000-0000-0000-000000000012
+		dataType: string
+		summarizeBy: none
+		sourceColumn: city
+
+	column state
+		lineageTag: aaaaaaaa-0000-0000-0000-000000000013
+		dataType: string
+		summarizeBy: none
+		sourceColumn: state
+
+	partition DimStore = m
+		mode: import
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i45WAgAA", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [store_id = _t, store_name = _t, city = _t, state = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"store_id", Int64.Type}, {"store_name", type text}, {"city", type text}, {"state", type text}})
+				in
+				    #"Changed Type"

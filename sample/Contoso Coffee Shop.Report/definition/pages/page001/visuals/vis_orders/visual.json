@@ -1,0 +1,52 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.7.0/schema.json",
+  "name": "vis_orders",
+  "position": {
+    "x": 240,
+    "y": 20,
+    "z": 1001,
+    "height": 100,
+    "width": 200,
+    "tabOrder": 1001
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": { "SourceRef": { "Entity": "Contoso Measures" } },
+                  "Property": "Total Orders"
+                }
+              },
+              "queryRef": "Contoso Measures.Total Orders",
+              "nativeQueryRef": "Total Orders"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true,
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": {
+              "expr": {
+                "Literal": { "Value": "'Total Orders'" }
+              }
+            },
+            "show": {
+              "expr": {
+                "Literal": { "Value": "true" }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

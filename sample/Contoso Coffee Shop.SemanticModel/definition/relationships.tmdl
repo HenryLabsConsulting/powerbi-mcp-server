@@ -1,0 +1,11 @@
+relationship aaaaaaaa-1111-0000-0000-000000000001
+	fromColumn: FactSales.date_key
+	toColumn: DimDate.Date
+
+relationship aaaaaaaa-1111-0000-0000-000000000002
+	fromColumn: FactSales.store_key
+	toColumn: DimStore.store_id
+
+relationship aaaaaaaa-1111-0000-0000-000000000003
+	fromColumn: FactSales.product_key
+	toColumn: DimProduct.product_id

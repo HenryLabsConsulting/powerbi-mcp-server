@@ -1,0 +1,36 @@
+table DimProduct
+	lineageTag: cccccccc-0000-0000-0000-000000000003
+
+	column product_id
+		lineageTag: aaaaaaaa-0000-0000-0000-000000000020
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: product_id
+
+	column product_name
+		lineageTag: aaaaaaaa-0000-0000-0000-000000000021
+		dataType: string
+		summarizeBy: none
+		sourceColumn: product_name
+
+	column category
+		lineageTag: aaaaaaaa-0000-0000-0000-000000000022
+		dataType: string
+		summarizeBy: none
+		sourceColumn: category
+
+	column unit_price
+		lineageTag: aaaaaaaa-0000-0000-0000-000000000023
+		dataType: decimal
+		summarizeBy: none
+		sourceColumn: unit_price
+		formatString: $#,##0.00
+
+	partition DimProduct = m
+		mode: import
+		source =
+				let
+				    Source = Table.FromRows(Json.Document(Binary.Decompress(Binary.FromText("i45WAgAA", BinaryEncoding.Base64), Compression.Deflate)), let _t = ((type nullable text) meta [Serialized.Text = true]) in type table [product_id = _t, product_name = _t, category = _t, unit_price = _t]),
+				    #"Changed Type" = Table.TransformColumnTypes(Source,{{"product_id", Int64.Type}, {"product_name", type text}, {"category", type text}, {"unit_price", type number}})
+				in
+				    #"Changed Type"
