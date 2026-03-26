@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "powerbi-mcp-server"
+version = "1.0.0"
+description = "MCP server for reading and writing Power BI .pbip project files"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp>=1.0.0",
+]
+
+[project.scripts]
+powerbi-mcp-server = "powerbi_mcp.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
