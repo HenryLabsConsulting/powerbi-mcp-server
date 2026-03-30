@@ -1,6 +1,7 @@
 """MCP tool implementations for report-layer operations.
 
-Tools: list_pages, list_visuals, read_visual, update_visual.
+Tools: list_pages, list_visuals, read_visual, update_visual,
+       create_visual, delete_visual, clone_visual.
 """
 
 import json
@@ -122,3 +123,102 @@ def update_visual(
         }
     except OSError as e:
         return {"error": f"Write failed: {e}"}
+
+
+def create_visual(
+    config: Config, page_name: str, visual_definition: dict
+) -> dict:
+    """Create a new visual on a page. Requires read-write mode.
+
+    visual_definition should contain at minimum:
+      - position: {x, y, width, height, z, tabOrder}
+      - visual: {visualType: "...", query: {...}, ...}
+    """
+    if config.read_only:
+        return {
+            "error": "Server is in read-only mode. Set POWERBI_MCP_READ_ONLY=false to enable writes."
+        }
+
+    page_result = pbip_reader.find_page_by_name(config, page_name)
+    if page_result is None:
+        pages = pbip_reader.get_all_pages(config)
+        available = [p["displayName"] for p in pages]
+        return {"error": f"Page '{page_name}' not found.", "available_pages": available}
+
+    _page_hash, page_dir = page_result
+
+    # Path confinement check
+    visuals_dir = page_dir / "visuals"
+    if not config.is_within_project(visuals_dir):
+        return {"error": "Invalid path: must be within the .pbip project directory."}
+
+    try:
+        result = pbip_reader.create_visual_dir(page_dir, visual_definition)
+        return {"success": True, **result}
+    except ValueError as e:
+        return {"error": f"Validation failed: {e}"}
+    except OSError as e:
+        return {"error": f"Create failed: {e}"}
+
+
+def delete_visual(
+    config: Config, page_name: str, visual_id: str
+) -> dict:
+    """Delete a visual from a page. Moves to .deleted backup. Requires read-write mode."""
+    if config.read_only:
+        return {
+            "error": "Server is in read-only mode. Set POWERBI_MCP_READ_ONLY=false to enable writes."
+        }
+
+    page_result = pbip_reader.find_page_by_name(config, page_name)
+    if page_result is None:
+        pages = pbip_reader.get_all_pages(config)
+        available = [p["displayName"] for p in pages]
+        return {"error": f"Page '{page_name}' not found.", "available_pages": available}
+
+    _page_hash, page_dir = page_result
+    visual_dir = pbip_reader.find_visual(page_dir, visual_id)
+    if visual_dir is None:
+        return {"error": f"Visual '{visual_id}' not found on page '{page_name}'."}
+
+    if not config.is_within_project(visual_dir / "visual.json"):
+        return {"error": "Invalid path: must be within the .pbip project directory."}
+
+    try:
+        result = pbip_reader.delete_visual_dir(visual_dir)
+        return {"success": True, **result}
+    except PermissionError:
+        return {
+            "error": "File is locked, likely by Power BI Desktop. Close Power BI Desktop and try again."
+        }
+    except OSError as e:
+        return {"error": f"Delete failed: {e}"}
+
+
+def clone_visual(
+    config: Config, page_name: str, visual_id: str, position_override: dict | None = None
+) -> dict:
+    """Clone an existing visual to a new copy with optional position override. Requires read-write mode."""
+    if config.read_only:
+        return {
+            "error": "Server is in read-only mode. Set POWERBI_MCP_READ_ONLY=false to enable writes."
+        }
+
+    page_result = pbip_reader.find_page_by_name(config, page_name)
+    if page_result is None:
+        pages = pbip_reader.get_all_pages(config)
+        available = [p["displayName"] for p in pages]
+        return {"error": f"Page '{page_name}' not found.", "available_pages": available}
+
+    _page_hash, page_dir = page_result
+    visual_dir = pbip_reader.find_visual(page_dir, visual_id)
+    if visual_dir is None:
+        return {"error": f"Visual '{visual_id}' not found on page '{page_name}'."}
+
+    try:
+        result = pbip_reader.clone_visual_dir(page_dir, visual_dir, position_override)
+        return {"success": True, **result}
+    except ValueError as e:
+        return {"error": f"Clone failed: {e}"}
+    except OSError as e:
+        return {"error": f"Clone failed: {e}"}

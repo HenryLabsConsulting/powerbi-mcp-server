@@ -5,6 +5,7 @@ reads/writes visual.json files with backup support.
 """
 
 import json
+import secrets
 import shutil
 from pathlib import Path
 
@@ -250,3 +251,98 @@ def write_visual_json(visual_dir: Path, merged_data: dict) -> dict:
         "path": str(visual_json),
         "backup": str(backup_path),
     }
+
+
+def generate_visual_hash() -> str:
+    """Generate a 20-character hex hash for a new visual directory name."""
+    return secrets.token_hex(10)
+
+
+def create_visual_dir(page_dir: Path, visual_data: dict) -> dict:
+    """Create a new visual directory with visual.json under a page.
+
+    Generates a unique hash for the directory name and writes visual.json.
+    The visual_data must include at minimum: position and visual.visualType.
+
+    Returns dict with 'visual_id', 'path' keys on success.
+    Raises ValueError on invalid data, OSError on write failure.
+    """
+    visuals_dir = page_dir / "visuals"
+    visuals_dir.mkdir(exist_ok=True)
+
+    # Generate unique hash, retry if collision (extremely unlikely)
+    for _ in range(10):
+        visual_hash = generate_visual_hash()
+        visual_dir = visuals_dir / visual_hash
+        if not visual_dir.exists():
+            break
+    else:
+        raise OSError("Failed to generate unique visual hash after 10 attempts.")
+
+    # Inject the hash as the visual name
+    visual_data["name"] = visual_hash
+
+    # Ensure $schema is present
+    if "$schema" not in visual_data:
+        visual_data["$schema"] = (
+            "https://developer.microsoft.com/json-schemas/fabric/item/report/"
+            "definition/visualContainer/2.7.0/schema.json"
+        )
+
+    # Validate serialization
+    try:
+        json_str = json.dumps(visual_data, indent=2, ensure_ascii=False)
+        json.loads(json_str)  # round-trip check
+    except (TypeError, ValueError, json.JSONDecodeError) as e:
+        raise ValueError(f"Visual JSON is invalid: {e}") from e
+
+    # Write
+    visual_dir.mkdir()
+    visual_json_path = visual_dir / "visual.json"
+    visual_json_path.write_text(json_str, encoding="utf-8")
+
+    return {
+        "visual_id": visual_hash,
+        "path": str(visual_json_path),
+    }
+
+
+def delete_visual_dir(visual_dir: Path) -> dict:
+    """Delete a visual directory after creating a backup.
+
+    Moves the entire visual directory to visual_dir.deleted as a safety net.
+    Returns dict with 'deleted_id', 'backup_path' keys.
+    """
+    visual_id = visual_dir.name
+    backup_dir = visual_dir.parent / f"{visual_id}.deleted"
+
+    # If a previous .deleted backup exists, remove it
+    if backup_dir.exists():
+        shutil.rmtree(backup_dir)
+
+    # Move instead of delete for safety
+    shutil.move(str(visual_dir), str(backup_dir))
+
+    return {
+        "deleted_id": visual_id,
+        "backup_path": str(backup_dir),
+    }
+
+
+def clone_visual_dir(page_dir: Path, source_dir: Path, position_override: dict | None = None) -> dict:
+    """Clone an existing visual to a new directory with a new hash.
+
+    Optionally override position (x, y, width, height, z, tabOrder).
+    Returns dict with 'visual_id', 'path' keys.
+    """
+    source_data = read_visual_json(source_dir)
+    if source_data is None:
+        raise ValueError(f"Failed to read source visual at {source_dir}.")
+
+    # Override position if provided
+    if position_override:
+        current_pos = source_data.get("position", {})
+        current_pos.update(position_override)
+        source_data["position"] = current_pos
+
+    return create_visual_dir(page_dir, source_data)

@@ -1,6 +1,6 @@
 """MCP server entry point for Power BI .pbip file access.
 
-Registers all 7 tools via FastMCP and runs on stdio transport.
+Registers all 10 tools via FastMCP and runs on stdio transport.
 Configuration is loaded at startup from environment variables and CLI args.
 """
 
@@ -126,6 +126,91 @@ def tool_update_visual(page_name: str, visual_id: str, properties: str) -> str:
         return json.dumps({"error": "properties must be a JSON object (dict)."})
 
     result = report_tools.update_visual(config, page_name, visual_id, props)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool(
+    name="create_visual",
+    description=(
+        "Create a new visual on a page. Provide full visual definition as JSON including "
+        "position (x, y, width, height, z, tabOrder) and visual config (visualType, query, objects). "
+        "Returns the generated visual_id. Only works when POWERBI_MCP_READ_ONLY=false."
+    ),
+)
+def tool_create_visual(page_name: str, visual_definition: str) -> str:
+    """Create a new visual on a page.
+
+    Args:
+        page_name: Page displayName (case-insensitive) or page hash ID.
+        visual_definition: JSON string with the full visual definition (position, visual).
+    """
+    try:
+        config = _get_config()
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+    try:
+        definition = json.loads(visual_definition) if isinstance(visual_definition, str) else visual_definition
+    except json.JSONDecodeError as e:
+        return json.dumps({"error": f"Invalid JSON in visual_definition: {e}"})
+
+    if not isinstance(definition, dict):
+        return json.dumps({"error": "visual_definition must be a JSON object (dict)."})
+
+    result = report_tools.create_visual(config, page_name, definition)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool(
+    name="delete_visual",
+    description=(
+        "Delete a visual from a page. Moves the visual to a .deleted backup directory "
+        "for safety (not permanent deletion). Only works when POWERBI_MCP_READ_ONLY=false."
+    ),
+)
+def tool_delete_visual(page_name: str, visual_id: str) -> str:
+    """Delete a visual from a page.
+
+    Args:
+        page_name: Page displayName (case-insensitive) or page hash ID.
+        visual_id: Visual hash ID or label like 'card:Estimate Win Rate'.
+    """
+    try:
+        config = _get_config()
+        result = report_tools.delete_visual(config, page_name, visual_id)
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool(
+    name="clone_visual",
+    description=(
+        "Clone an existing visual to create a copy on the same page. "
+        "Optionally override position (x, y, width, height, z, tabOrder) for the clone. "
+        "Useful for creating variants of existing visuals. Only works when POWERBI_MCP_READ_ONLY=false."
+    ),
+)
+def tool_clone_visual(page_name: str, visual_id: str, position: str = "{}") -> str:
+    """Clone an existing visual with optional position override.
+
+    Args:
+        page_name: Page displayName (case-insensitive) or page hash ID.
+        visual_id: Visual hash ID or label of the source visual.
+        position: Optional JSON string with position overrides (x, y, width, height, z, tabOrder).
+    """
+    try:
+        config = _get_config()
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+    try:
+        pos_override = json.loads(position) if isinstance(position, str) else position
+    except json.JSONDecodeError as e:
+        return json.dumps({"error": f"Invalid JSON in position: {e}"})
+
+    pos_dict = pos_override if pos_override else None
+    result = report_tools.clone_visual(config, page_name, visual_id, pos_dict)
     return json.dumps(result, indent=2)
 
 
