@@ -1,15 +1,15 @@
 # Power BI MCP Server
 
-An [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that gives AI assistants like Claude direct read and write access to Power BI `.pbip` project files. Edit visuals, inspect measures, and manage report layouts — all through natural language.
+An [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that gives AI assistants like Claude direct read and write access to Power BI `.pbip` project files. Edit visuals, inspect measures, and manage report layouts, all through natural language.
 
 ## What it does
 
-Power BI Desktop now supports the `.pbip` format — a folder of JSON and TMDL text files instead of a single binary `.pbix`. This server exposes that folder structure through 7 MCP tools, allowing any MCP-compatible client to:
+Power BI Desktop now supports the `.pbip` format: a folder of JSON and TMDL text files instead of a single binary `.pbix`. This server exposes that folder structure through 7 MCP tools, allowing any MCP-compatible client to:
 
 - **List pages** in a report with dimensions, visibility, and visual counts
 - **List visuals** on any page with type, position, and bound measures/columns
 - **Read a visual's** full configuration (query bindings, formatting, filters)
-- **Update a visual** via deep-merge — change position, rebind measures, update titles, all with partial JSON
+- **Update a visual** via deep-merge: change position, rebind measures, update titles, all with partial JSON
 - **List all DAX measures** with expressions, format strings, and table membership
 - **Read a specific measure's** full DAX expression and metadata
 - **List all relationships** in the semantic model with cardinality and cross-filter direction
@@ -129,7 +129,7 @@ When writing, the server:
 1. Creates a `.bak` backup of the visual before any change
 2. Deep-merges your partial JSON into the existing visual (unchanged properties are preserved)
 3. Validates the merged JSON before writing
-4. Enforces path confinement — writes are restricted to the `.pbip` project directory
+4. Enforces path confinement: writes are restricted to the `.pbip` project directory
 
 ### Visual addressing
 
@@ -150,7 +150,7 @@ The `sample/` directory contains a complete "Contoso Coffee Shop" `.pbip` projec
 - 4 tables (DimDate, DimStore, DimProduct, FactSales) with a star schema
 - 3 relationships
 
-This is a structural sample — it contains report definitions and measure formulas, not row-level data. You can use it to test every tool without connecting to a data source.
+This is a structural sample. It contains report definitions and measure formulas, not row-level data. You can use it to test every tool without connecting to a data source.
 
 ## How .pbip works
 
@@ -174,7 +174,7 @@ Project.SemanticModel/
     relationships.tmdl           ← foreign keys between tables
 ```
 
-Because everything is text, it's version-controllable and programmatically editable — which is exactly what this server enables.
+Because everything is text, it's version-controllable and programmatically editable, which is exactly what this server enables.
 
 ## Configuration
 
