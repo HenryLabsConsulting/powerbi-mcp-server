@@ -73,8 +73,8 @@ class Config:
         try:
             resolved = path.resolve()
             return (
-                str(resolved).startswith(str(self.report_dir))
-                or str(resolved).startswith(str(self.semantic_model_dir))
+                resolved.is_relative_to(self.report_dir.resolve())
+                or resolved.is_relative_to(self.semantic_model_dir.resolve())
             )
         except (OSError, ValueError):
             return False
