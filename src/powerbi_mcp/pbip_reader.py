@@ -221,6 +221,34 @@ def deep_merge(base: dict, override: dict) -> dict:
     return result
 
 
+# Keys that Power BI requires inside the "visual" object, never at root level.
+_VISUAL_INNER_KEYS = {"visualContainerObjects", "drillFilterOtherVisuals"}
+
+
+def normalize_visual_structure(data: dict) -> dict:
+    """Ensure visual-inner keys live inside data["visual"], not at root.
+
+    Power BI .pbip schema requires keys like visualContainerObjects and
+    drillFilterOtherVisuals to be nested inside the "visual" object.
+    If they appear at the root level (sibling of $schema, name, position),
+    this function relocates them via deep merge into data["visual"].
+    """
+    visual = data.get("visual")
+    if not isinstance(visual, dict):
+        return data
+
+    for key in _VISUAL_INNER_KEYS:
+        if key in data:
+            # Key is at root but belongs inside visual — relocate it
+            root_value = data.pop(key)
+            if key in visual and isinstance(visual[key], dict) and isinstance(root_value, dict):
+                visual[key] = deep_merge(visual[key], root_value)
+            else:
+                visual[key] = root_value
+
+    return data
+
+
 def write_visual_json(visual_dir: Path, merged_data: dict) -> dict:
     """Write merged visual data to visual.json with backup.
 
@@ -229,6 +257,9 @@ def write_visual_json(visual_dir: Path, merged_data: dict) -> dict:
     """
     visual_json = visual_dir / "visual.json"
     backup_path = visual_dir / "visual.json.bak"
+
+    # Ensure visualContainerObjects etc. are inside "visual", not at root
+    merged_data = normalize_visual_structure(merged_data)
 
     # Validate the merged data is serializable and round-trips clean
     try:
@@ -288,6 +319,9 @@ def create_visual_dir(page_dir: Path, visual_data: dict) -> dict:
             "https://developer.microsoft.com/json-schemas/fabric/item/report/"
             "definition/visualContainer/2.7.0/schema.json"
         )
+
+    # Ensure visualContainerObjects etc. are inside "visual", not at root
+    visual_data = normalize_visual_structure(visual_data)
 
     # Validate serialization
     try:

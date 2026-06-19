@@ -1,6 +1,6 @@
 """MCP server entry point for Power BI .pbip file access.
 
-Registers all 10 tools via FastMCP and runs on stdio transport.
+Registers all tools via FastMCP and runs on stdio transport.
 Configuration is loaded at startup from environment variables and CLI args.
 """
 
@@ -215,6 +215,46 @@ def tool_clone_visual(page_name: str, visual_id: str, position: str = "{}") -> s
 
 
 @mcp.tool(
+    name="list_tables",
+    description=(
+        "List all tables in the semantic model with type classification "
+        "(fact/dimension/bridge/measure_table/other), column count, "
+        "calculated column count, measure count, and partition count."
+    ),
+)
+def tool_list_tables() -> str:
+    """List all tables in the semantic model."""
+    try:
+        config = _get_config()
+        result = model_tools.list_tables(config)
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool(
+    name="read_table",
+    description=(
+        "Read a table's full TMDL definition including all columns (with data types, "
+        "source expressions), calculated columns, measures, and partitions. "
+        "Accepts table name (case-insensitive)."
+    ),
+)
+def tool_read_table(table_name: str) -> str:
+    """Read a specific table's full definition.
+
+    Args:
+        table_name: The table name (case-insensitive).
+    """
+    try:
+        config = _get_config()
+        result = model_tools.read_table(config, table_name)
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool(
     name="list_measures",
     description=(
         "List all DAX measures in the semantic model. Optionally filter by table name. "
@@ -261,6 +301,115 @@ def tool_read_measure(measure_name: str, table_name: str = "") -> str:
 
 
 @mcp.tool(
+    name="create_measure",
+    description=(
+        "Create a new DAX measure in a table's TMDL file. Requires table_name, "
+        "measure_name, and expression (DAX). Optional: format_string, description, "
+        "display_folder. Creates .bak backup before writing. "
+        "Only works when POWERBI_MCP_READ_ONLY=false."
+    ),
+)
+def tool_create_measure(
+    table_name: str,
+    measure_name: str,
+    expression: str,
+    format_string: str = "",
+    description: str = "",
+    display_folder: str = "",
+) -> str:
+    """Create a new DAX measure.
+
+    Args:
+        table_name: The table to add the measure to.
+        measure_name: Name for the new measure.
+        expression: DAX expression for the measure.
+        format_string: Optional DAX format string (e.g. '0.00', '$#,0').
+        description: Optional description of the measure.
+        display_folder: Optional display folder for organizing measures.
+    """
+    try:
+        config = _get_config()
+        result = model_tools.create_measure(
+            config,
+            table_name=table_name,
+            measure_name=measure_name,
+            expression=expression,
+            format_string=format_string or None,
+            description=description or None,
+            display_folder=display_folder or None,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool(
+    name="update_measure",
+    description=(
+        "Update an existing measure's DAX expression or metadata. Only the fields "
+        "you provide are changed; others are preserved. Requires measure_name and "
+        "table_name. Creates .bak backup before writing. "
+        "Only works when POWERBI_MCP_READ_ONLY=false."
+    ),
+)
+def tool_update_measure(
+    measure_name: str,
+    table_name: str,
+    expression: str = "",
+    format_string: str = "",
+    description: str = "",
+    display_folder: str = "",
+) -> str:
+    """Update an existing measure.
+
+    Args:
+        measure_name: The measure to update (case-insensitive).
+        table_name: The table containing the measure.
+        expression: New DAX expression. Empty string = no change.
+        format_string: New format string. Empty string = no change.
+        description: New description. Empty string = no change.
+        display_folder: New display folder. Empty string = no change.
+    """
+    try:
+        config = _get_config()
+        # Convert empty strings to sentinel (no change) or actual value
+        result = model_tools.update_measure(
+            config,
+            measure_name=measure_name,
+            table_name=table_name,
+            expression=expression or None,
+            format_string=format_string if format_string else ...,
+            description=description if description else ...,
+            display_folder=display_folder if display_folder else ...,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool(
+    name="delete_measure",
+    description=(
+        "Delete a measure from a table's TMDL file. Creates .bak backup before "
+        "writing for safety. Only works when POWERBI_MCP_READ_ONLY=false."
+    ),
+)
+def tool_delete_measure(measure_name: str, table_name: str) -> str:
+    """Delete a measure from a table.
+
+    Args:
+        measure_name: The measure to delete (case-insensitive).
+        table_name: The table containing the measure.
+    """
+    try:
+        config = _get_config()
+        result = model_tools.delete_measure(config, measure_name, table_name)
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool(
     name="list_relationships",
     description=(
         "List all relationships in the semantic model. Returns relationship name, "
@@ -272,6 +421,67 @@ def tool_list_relationships() -> str:
     try:
         config = _get_config()
         result = model_tools.list_relationships(config)
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool(
+    name="create_relationship",
+    description=(
+        "Create a new relationship between two tables in relationships.tmdl. "
+        "Validates both tables and columns exist. Optional: is_active (default true), "
+        "cross_filtering ('oneDirection', 'bothDirections', 'automatic'). "
+        "Creates .bak backup before writing. Only works when POWERBI_MCP_READ_ONLY=false."
+    ),
+)
+def tool_create_relationship(
+    from_table: str,
+    from_column: str,
+    to_table: str,
+    to_column: str,
+    is_active: bool = True,
+    cross_filtering: str = "",
+) -> str:
+    """Create a new model relationship.
+
+    Args:
+        from_table: The many-side (fact) table name.
+        from_column: The foreign key column in from_table.
+        to_table: The one-side (dimension) table name.
+        to_column: The primary key column in to_table.
+        is_active: Whether the relationship is active (default true).
+        cross_filtering: Cross-filtering behavior: oneDirection, bothDirections, or automatic.
+    """
+    try:
+        config = _get_config()
+        result = model_tools.create_relationship(
+            config,
+            from_table=from_table,
+            from_column=from_column,
+            to_table=to_table,
+            to_column=to_column,
+            is_active=is_active,
+            cross_filtering=cross_filtering or None,
+        )
+        return json.dumps(result, indent=2)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
+
+
+@mcp.tool(
+    name="read_data_sources",
+    description=(
+        "List all data sources in the semantic model. Returns shared expressions "
+        "(M/Power Query functions) from expressions.tmdl and partition source "
+        "summaries from each table. Credentials are automatically redacted."
+    ),
+)
+def tool_read_data_sources() -> str:
+    """Read data source configuration from the semantic model."""
+    try:
+        config = _get_config()
+        result = model_tools.read_data_sources(config)
         return json.dumps(result, indent=2)
     except Exception as e:
         return json.dumps({"error": str(e)})
