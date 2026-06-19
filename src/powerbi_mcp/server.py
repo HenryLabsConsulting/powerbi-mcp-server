@@ -100,7 +100,8 @@ def tool_read_visual(page_name: str, visual_id: str) -> str:
     description=(
         "Update a visual's properties by deep-merging changes into visual.json. "
         "Creates a .bak backup before writing. Only works when POWERBI_MCP_READ_ONLY=false. "
-        "Pass partial JSON — only the specified keys are changed, everything else is preserved."
+        "Pass partial JSON to deep-merge: object keys you omit are kept, and "
+        "list-valued properties are replaced as a whole."
     ),
 )
 def tool_update_visual(page_name: str, visual_id: str, properties: str) -> str:
