@@ -61,8 +61,8 @@ Point the server at a `.pbip` file. Example for a Claude client:
 
 Configuration comes from the CLI argument or environment:
 
-- `POWERBI_MCP_PBIP_PATH` — path to the `.pbip` file (alternative to `--pbip-path`).
-- `POWERBI_MCP_READ_ONLY` — defaults to `true`. Set to `false` to allow writes.
+- `POWERBI_MCP_PBIP_PATH`: path to the `.pbip` file (alternative to `--pbip-path`).
+- `POWERBI_MCP_READ_ONLY`: defaults to `true`. Set to `false` to allow writes.
 
 ## Safety model
 
