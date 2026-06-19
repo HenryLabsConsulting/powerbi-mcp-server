@@ -4,7 +4,6 @@ Tools: list_pages, list_visuals, read_visual, update_visual,
        create_visual, delete_visual, clone_visual.
 """
 
-import json
 
 from .config import Config
 from . import pbip_reader
