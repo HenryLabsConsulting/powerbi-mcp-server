@@ -35,6 +35,24 @@ def _strip_quotes(name: str) -> str:
     return name
 
 
+# Property keys that may appear as children of a measure block. A line starting
+# with any of these (or an annotation) ends a no-backtick expression body rather
+# than being treated as a continuation line of the DAX.
+_MEASURE_PROPERTY_KEYS = (
+    "formatString:",
+    "lineageTag:",
+    "description:",
+    "displayFolder:",
+    "isHidden",
+    "annotation ",
+)
+
+
+def _is_measure_property_line(stripped: str) -> bool:
+    """True if a stripped line is a known measure property/annotation, not DAX."""
+    return stripped.startswith(_MEASURE_PROPERTY_KEYS)
+
+
 def _extract_backtick_expression(lines: list[str], start_idx: int) -> tuple[str, int]:
     """Extract a multi-line expression delimited by triple backticks.
 
@@ -89,8 +107,18 @@ def parse_table_file(file_path: Path) -> dict:
             i += 1
             continue
 
-        # Table-level lineageTag
-        if indent == 1 and stripped.startswith("lineageTag:") and not columns and not measures:
+        # Table-level lineageTag. Only the first level-1 lineageTag seen before any
+        # child block (column / measure / calculated column / partition) belongs to
+        # the table itself; later ones are child properties handled in their blocks.
+        if (
+            indent == 1
+            and stripped.startswith("lineageTag:")
+            and table_lineage_tag is None
+            and not columns
+            and not measures
+            and not calculated_columns
+            and not partitions
+        ):
             table_lineage_tag = stripped.split(":", 1)[1].strip()
             i += 1
             continue
@@ -175,8 +203,11 @@ def _parse_measure_block(lines: list[str], start: int) -> tuple[dict | None, int
             measure["expression"] = expr
             i = end_idx + 1
         elif not expr_start:
-            # Expression follows on subsequent indented lines (no backticks)
-            # Collect lines at indent >= 3 until we hit a property line (indent 2)
+            # Expression follows on subsequent indented lines (no backticks).
+            # Continuation lines can sit at indent 2 (a common formatting), so
+            # collect everything at indent >= 2 EXCEPT recognized property keys
+            # and annotations, which mark the end of the expression body. Stopping
+            # at indent < 3 dropped indent-2 continuations and lost the expression.
             i = start + 1
             expr_lines = []
             while i < len(lines):
@@ -186,7 +217,7 @@ def _parse_measure_block(lines: list[str], start: int) -> tuple[dict | None, int
                 if not s:
                     i += 1
                     continue
-                if ind >= 3:
+                if ind >= 2 and not _is_measure_property_line(s):
                     expr_lines.append(s)
                     i += 1
                 else:
