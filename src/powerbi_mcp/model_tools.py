@@ -113,8 +113,14 @@ def read_measure(
     matches = [m for m in all_measures if m["name"].lower().strip() == measure_name_lower]
 
     if not matches:
-        # Provide available measure names for discoverability
-        all_names = [m["name"] for m in tmdl_parser.get_all_measures(config)]
+        # Provide available measure names for discoverability. Reuse the measures
+        # already parsed above when the search was unfiltered, to avoid a second
+        # full re-parse of every table file on a miss.
+        if table_name is None:
+            source_measures = all_measures
+        else:
+            source_measures = tmdl_parser.get_all_measures(config)
+        all_names = [m["name"] for m in source_measures]
         return {
             "error": f"Measure '{measure_name}' not found.",
             "available_measures": all_names[:50],  # cap to avoid huge responses
