@@ -4,6 +4,7 @@ Discovers pages, reads page.json metadata, discovers visuals,
 reads/writes visual.json files with backup support.
 """
 
+import copy
 import json
 import secrets
 import shutil
@@ -289,15 +290,48 @@ def generate_visual_hash() -> str:
     return secrets.token_hex(10)
 
 
+def _validate_visual_definition(visual_data: dict) -> None:
+    """Raise ValueError if a visual definition is missing keys Power BI requires.
+
+    A visual.json without a position or a visual.visualType produces a .pbip that
+    Power BI refuses to open, so reject it up front rather than writing a corrupt
+    file. The error lists every missing key so the caller can fix them in one pass.
+    """
+    missing: list[str] = []
+
+    position = visual_data.get("position")
+    if not isinstance(position, dict):
+        missing.append("position")
+
+    visual = visual_data.get("visual")
+    if not isinstance(visual, dict):
+        missing.append("visual.visualType")
+    elif not visual.get("visualType"):
+        missing.append("visual.visualType")
+
+    if missing:
+        raise ValueError(
+            "Visual definition is missing required keys: " + ", ".join(missing)
+        )
+
+
 def create_visual_dir(page_dir: Path, visual_data: dict) -> dict:
     """Create a new visual directory with visual.json under a page.
 
     Generates a unique hash for the directory name and writes visual.json.
     The visual_data must include at minimum: position and visual.visualType.
 
+    The caller's dict is never mutated; a deep copy is made before any edits.
+
     Returns dict with 'visual_id', 'path' keys on success.
     Raises ValueError on invalid data, OSError on write failure.
     """
+    # Validate required keys before touching the filesystem.
+    _validate_visual_definition(visual_data)
+
+    # Work on a deep copy so the caller's dict is left untouched.
+    visual_data = copy.deepcopy(visual_data)
+
     visuals_dir = page_dir / "visuals"
     visuals_dir.mkdir(exist_ok=True)
 
