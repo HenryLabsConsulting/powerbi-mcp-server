@@ -183,12 +183,17 @@ def extract_visual_summary(visual_data: dict) -> dict:
     }
 
 
-def find_visual(page_dir: Path, visual_id: str) -> Path | None:
+def find_visual(config: Config, page_dir: Path, visual_id: str) -> Path | None:
     """Find a visual directory by hash ID or label match.
 
     visual_id can be:
     - A hash (direct folder name match)
     - A label like "card:Estimate Win Rate" (type:field match)
+
+    Path confinement is enforced here so every caller (read, write, clone,
+    delete) inherits it: a visual_id containing traversal segments (e.g.
+    "..\\..\\secrets") that resolves outside the .pbip project is rejected
+    rather than returned.
     """
     visuals_dir = page_dir / "visuals"
     if not visuals_dir.exists():
@@ -196,7 +201,7 @@ def find_visual(page_dir: Path, visual_id: str) -> Path | None:
 
     # Direct hash match
     direct = visuals_dir / visual_id
-    if direct.exists() and direct.is_dir():
+    if direct.exists() and direct.is_dir() and config.is_within_project(direct):
         return direct
 
     # Label-based lookup: scan all visuals and match label

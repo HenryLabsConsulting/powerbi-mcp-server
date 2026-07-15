@@ -54,7 +54,7 @@ def read_visual(config: Config, page_name: str, visual_id: str) -> dict:
         return {"error": f"Page '{page_name}' not found.", "available_pages": available}
 
     _page_hash, page_dir = page_result
-    visual_dir = pbip_reader.find_visual(page_dir, visual_id)
+    visual_dir = pbip_reader.find_visual(config, page_dir, visual_id)
     if visual_dir is None:
         visual_dirs = pbip_reader.list_visual_folders(page_dir)
         available = []
@@ -96,7 +96,7 @@ def update_visual(
         return {"error": f"Page '{page_name}' not found.", "available_pages": available}
 
     _page_hash, page_dir = page_result
-    visual_dir = pbip_reader.find_visual(page_dir, visual_id)
+    visual_dir = pbip_reader.find_visual(config, page_dir, visual_id)
     if visual_dir is None:
         return {"error": f"Visual '{visual_id}' not found on page '{page_name}'."}
 
@@ -176,7 +176,7 @@ def delete_visual(
         return {"error": f"Page '{page_name}' not found.", "available_pages": available}
 
     _page_hash, page_dir = page_result
-    visual_dir = pbip_reader.find_visual(page_dir, visual_id)
+    visual_dir = pbip_reader.find_visual(config, page_dir, visual_id)
     if visual_dir is None:
         return {"error": f"Visual '{visual_id}' not found on page '{page_name}'."}
 
@@ -210,7 +210,7 @@ def clone_visual(
         return {"error": f"Page '{page_name}' not found.", "available_pages": available}
 
     _page_hash, page_dir = page_result
-    visual_dir = pbip_reader.find_visual(page_dir, visual_id)
+    visual_dir = pbip_reader.find_visual(config, page_dir, visual_id)
     if visual_dir is None:
         return {"error": f"Visual '{visual_id}' not found on page '{page_name}'."}
 
