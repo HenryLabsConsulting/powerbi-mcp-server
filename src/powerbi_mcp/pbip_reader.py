@@ -220,6 +220,25 @@ def deep_merge(base: dict, override: dict) -> dict:
     return result
 
 
+def _validate_visual_definition(data: dict) -> None:
+    """Raise ValueError if fields required by Power BI are missing or null.
+
+    Power BI cannot open a visual whose position or visualType has been
+    nulled out by a deep-merge, so we reject such states before writing.
+    """
+    position = data.get("position")
+    if not isinstance(position, dict):
+        raise ValueError("'position' must be a non-null object")
+
+    visual = data.get("visual")
+    if not isinstance(visual, dict):
+        raise ValueError("'visual' must be a non-null object")
+
+    visual_type = visual.get("visualType")
+    if not isinstance(visual_type, str) or not visual_type:
+        raise ValueError("'visual.visualType' must be a non-empty string")
+
+
 def write_visual_json(visual_dir: Path, merged_data: dict) -> dict:
     """Write merged visual data to visual.json with backup.
 
@@ -235,6 +254,9 @@ def write_visual_json(visual_dir: Path, merged_data: dict) -> dict:
         json.loads(json_str)  # round-trip validation
     except (TypeError, ValueError, json.JSONDecodeError) as e:
         raise ValueError(f"Merged JSON is invalid: {e}") from e
+
+    # Validate required fields are not nulled out by the merge
+    _validate_visual_definition(merged_data)
 
     # Create backup
     if visual_json.exists():
