@@ -228,11 +228,11 @@ def _validate_visual_definition(data: dict) -> None:
     """
     position = data.get("position")
     if not isinstance(position, dict):
-        raise ValueError("'position' must be a non-null object")
+        raise ValueError("'position' must be a non-null object")  # noqa: TRY004
 
     visual = data.get("visual")
     if not isinstance(visual, dict):
-        raise ValueError("'visual' must be a non-null object")
+        raise ValueError("'visual' must be a non-null object")  # noqa: TRY004
 
     visual_type = visual.get("visualType")
     if not isinstance(visual_type, str) or not visual_type:
